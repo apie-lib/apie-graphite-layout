@@ -1,5 +1,5 @@
 import { h, VNode }  from '@stencil/core';
-import { InputState, FallbackRenderInfo, RenderInfo, toString, toArray, createErrorMessage, SubmitButtonState, FormGroupState, FormListRowState, FormListRowAddState, toFileList, toEmptyFileList } from 'apie-form-elements';
+import { InputState, FallbackRenderInfo, RenderInfo, toString, toArray, createErrorMessage, SubmitButtonState, FormGroupState, FormListRowState, FormListRowAddState, toFileList, toEmptyFileList, FieldWrapperOptions } from 'apie-form-elements';
 import { Constraint } from 'apie-form-elements/dist/types/components';
 
 async function openFileDialog(callback: (newValue: any) => void)
@@ -9,37 +9,66 @@ async function openFileDialog(callback: (newValue: any) => void)
     callback(fileData);
 }
 
+function renderFieldRow(content: VNode|VNode[], state: InputState, fieldWrapOptions: FieldWrapperOptions = {}): VNode|VNode[]{
+    const canEnterEmptyString = fieldWrapOptions.canEnterEmptyString !== false;
+    const showServersideErrors = fieldWrapOptions.canShowServersideValidationErrors !== false;
+    const showClientsideErrors = fieldWrapOptions.canShowClientsideValidationErrors !== false;
+    
+    return <div style={{display: 'flex', flexDirection: 'column'}}>
+        <div style={{ width: "100%", display:"flex", alignItems: 'center' }}>
+            <div style={{ width: "10%" }}>
+            { state.allowsNull && (!canEnterEmptyString || state.emptyStringAllowed) && <gr-checkbox style={{'--gr-toggle-size': '2rem'}} disabled={state.disabled} checked={state.value !== null} onClick={(ev) => { state.onTouched(); if (!(ev.target as any).checked) { state.valueChanged(null); } else { state.valueChanged(''); }}} /> }
+            </div>
+            <div style={{ width: "80%" }}>
+                {content}
+            </div>
+            <div style={{ width: "10%" }}>
+                {(state.validationResult.valid && undefined === state.serverValidationError[''])  ? <div style={{color: 'green', fontSize: 'xx-large'}}>✅</div> : <div style={{color: 'green', filter: "grayscale(100%)", fontSize: 'xx-large'}}>✅</div>}
+            </div>
+        </div>
+        {showServersideErrors && Array.from(Object.entries(state.serverValidationError))
+            .map((v) => {
+                return <div style={{width: '100%'}}> 
+                    <apie-graphite-validation-error message={toString(v[1] as any)} valid={false}></apie-graphite-validation-error>
+                </div>
+            })}
+        {showClientsideErrors && state.validationResult.messages.filter((v) => v.message && !v.serverSide)
+            .map((v) => {
+                return <div style={{width: '100%'}}> 
+                    <apie-graphite-validation-error message={v.message} valid={v.valid}></apie-graphite-validation-error>
+                </div>
+            })}
+    </div>;
+}
+
 function renderGraphiteInput(
     state: InputState,
     type: string,
     subNodes: VNode[]|VNode = [],
-    attributes: any = {}
+    attributes: any = {},
+    canEnterEmptyString: boolean = true,
+    wrapRow: boolean = true
 ) {
-    const messages = state.validationResult.messages.filter((v) => !v.valid && v.message && v.serverSide)
+    const messages = Array.from(Object.entries(state.serverValidationError))
         .map((v) => {
-            v.message
+            return toString(v[1] as any)
         }).join("\n");
-    const checks = state.validationResult.messages.filter((v) => v.message && !v.serverSide)
-        .map((v) => {
-            return <apie-graphite-validation-error message={v.message} valid={v.valid}></apie-graphite-validation-error>
-        })
-    return [
-        <p>
-            <gr-input 
-                name={state.name}
-                value={toString(state.value)}
-                type={type}
-                label={state.label}
-                disabled={state.disabled}
-                invalid={!state.validationResult.valid}
-                {...attributes}
-                onGr-change={(ev: any) => state.valueChanged(ev.target?.value)}
-            >{subNodes}
-            { messages && <slot name="invalid-text">{{ messages }}</slot>}
-            </gr-input>
-        </p>,
-        checks
-    ];
+    
+    const input =
+        <gr-input 
+            name={state.name}
+            value={toString(state.value)}
+            type={type}
+            label={state.label}
+            disabled={state.disabled}
+            invalid={!state.validationResult.valid || messages}
+            invalidText={messages}
+            {...attributes}
+            onGr-change={(ev: any) => state.valueChanged(ev.target?.value)}
+        >
+            {subNodes}
+        </gr-input>;
+    return wrapRow ? state.currentFieldWrapper(input, state, { canEnterEmptyString, canShowServersideValidationErrors: false }) : input;
 }
 export class GraphiteFormRender extends RenderInfo
 {
@@ -88,17 +117,20 @@ export class GraphiteFormRender extends RenderInfo
             },
             textarea(state: InputState) {
                 const rows = toString(state.value).split("\n").length;
-                return <gr-textarea
-                    name={state.name}
-                    value={toString(state.value)}
-                    disabled={state.disabled}
-                    label={state.label}
-                    onGr-change={(ev: any) => state.valueChanged(ev.target?.value)}
-                    rows={rows}>
-                </gr-textarea>
+                return state.currentFieldWrapper(
+                    <gr-textarea
+                        name={state.name}
+                        value={toString(state.value)}
+                        disabled={state.disabled}
+                        label={state.label}
+                        onGr-change={(ev: any) => state.valueChanged(ev.target?.value)}
+                        rows={rows}>
+                    </gr-textarea>,
+                    state
+                );
             },
             file(state: InputState) {
-                return (
+                return state.currentFieldWrapper(
                     <div onClick={(ev) => {ev.stopImmediatePropagation(); openFileDialog(state.valueChanged)}}>
                       <input type="file" style={ { display: 'none'} } disabled={state.disabled} onInput={(ev: any) => state.valueChanged(ev.target?.files[0])} name={state.name} files={state.value ? toFileList(state.value) : toEmptyFileList()}/>
                       <gr-input
@@ -111,9 +143,12 @@ export class GraphiteFormRender extends RenderInfo
                               ? []
                               : <ion-icon slot="end" icon="cloud-upload"></ion-icon> }
                           </gr-input>
-                          { state.value && <ion-icon icon="close-circle-outline" onClick={(ev) => { ev.stopImmediatePropagation(); state.valueChanged(null); } }></ion-icon> }
-                    </div>
-                  );
+                    </div>,
+                    state,
+                    {
+                        canEnterEmptyString: false
+                    }
+                );
             },
             multi(state: InputState) {
                 const value = new Set(toArray(state.value));
@@ -126,40 +161,64 @@ export class GraphiteFormRender extends RenderInfo
                     state.valueChanged(Array.from(value) as any);
                 }
                 if (!Array.isArray(state.additionalSettings?.options)) {
-                  return <gr-select
-                    label={state.label}
-                    value={state.value}
-                    disabled>
-                        <gr-menu-item value={state.value} checked>{toString(state.value)}</gr-menu-item>
-                    </gr-select>
-                }
-              
-                return <gr-select
-                    label={state.label}
-                    multiple
-                    disabled={state.disabled}
-                    value={Array.from(value)}
-                    >
-                  {state.additionalSettings.options.map((opt) => <gr-menu-item value={opt.value} onClick={() => toggle(opt.value)} checked={value.has(opt.value)}>{opt.name}</gr-menu-item>)}
-                  </gr-select>
-            },
-            select(state: InputState) {
-                if (!Array.isArray(state.additionalSettings?.options)) {
-                    return <gr-select
+                  return state.currentFieldWrapper(
+                    <gr-select
                       label={state.label}
                       value={state.value}
                       disabled>
-                          <gr-menu-item value={state.value} checked>{toString(state.value)}</gr-menu-item>
-                      </gr-select>
+                      <gr-menu-item value={state.value} checked>{toString(state.value)}</gr-menu-item>
+                    </gr-select>,
+                    state,
+                    {
+                      canEnterEmptyString: false
+                    }
+                  );
+                }
+              
+                return state.currentFieldWrapper(
+                    <gr-select
+                        label={state.label}
+                        multiple
+                        disabled={state.disabled}
+                        value={Array.from(value)}
+                        >
+                    {state.additionalSettings.options.map((opt) => <gr-menu-item value={opt.value} onClick={() => toggle(opt.value)} checked={value.has(opt.value)}>{opt.name}</gr-menu-item>)}
+                    </gr-select>,
+                    state,
+                    {
+                        canEnterEmptyString: false
+                    }
+                );
+            },
+            select(state: InputState) {
+                if (!Array.isArray(state.additionalSettings?.options)) {
+                    return state.currentFieldWrapper(
+                      <gr-select
+                        label={state.label}
+                        value={state.value}
+                        disabled>
+                        <gr-menu-item value={state.value} checked>{toString(state.value)}</gr-menu-item>
+                      </gr-select>,
+                      state,
+                      {
+                        canEnterEmptyString: false
+                      }
+                    );
                   }
                 
-                  return <gr-select
+                  return state.currentFieldWrapper(
+                    <gr-select
                       label={state.label}
                       disabled={state.disabled}
                       value={state.value}
-                      >
-                    {state.additionalSettings.options.map((opt) => <gr-menu-item value={opt.value} onClick={() => state.valueChanged(opt.value as any)} checked={state.value === opt.value}>{opt.name}</gr-menu-item>)}
-                    </gr-select>
+                    >
+                      {state.additionalSettings.options.map((opt) => <gr-menu-item value={opt.value} onClick={() => state.valueChanged(opt.value as any)} checked={state.value === opt.value}>{opt.name}</gr-menu-item>)}
+                    </gr-select>,
+                    state,
+                    {
+                        canEnterEmptyString: false
+                    }
+                );
             },
         };
     }
@@ -235,5 +294,10 @@ export class GraphiteFormRender extends RenderInfo
             { keyField }
             { button }
         </gr-field-group>;
+    }
+
+    public createFieldWrapper()
+    {
+        return renderFieldRow;
     }
 }

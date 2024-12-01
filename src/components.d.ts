@@ -15,6 +15,8 @@ export namespace Components {
         "validationErrors": NestedRecord<string>;
         "value": NestedRecord<SubmitField>;
     }
+    interface ApieGraphiteTest {
+    }
     interface ApieGraphiteValidationError {
         "message": string;
         "valid": boolean;
@@ -27,6 +29,12 @@ declare global {
         prototype: HTMLApieGraphiteFormElement;
         new (): HTMLApieGraphiteFormElement;
     };
+    interface HTMLApieGraphiteTestElement extends Components.ApieGraphiteTest, HTMLStencilElement {
+    }
+    var HTMLApieGraphiteTestElement: {
+        prototype: HTMLApieGraphiteTestElement;
+        new (): HTMLApieGraphiteTestElement;
+    };
     interface HTMLApieGraphiteValidationErrorElement extends Components.ApieGraphiteValidationError, HTMLStencilElement {
     }
     var HTMLApieGraphiteValidationErrorElement: {
@@ -35,6 +43,7 @@ declare global {
     };
     interface HTMLElementTagNameMap {
         "apie-graphite-form": HTMLApieGraphiteFormElement;
+        "apie-graphite-test": HTMLApieGraphiteTestElement;
         "apie-graphite-validation-error": HTMLApieGraphiteValidationErrorElement;
     }
 }
@@ -46,12 +55,15 @@ declare namespace LocalJSX {
         "validationErrors"?: NestedRecord<string>;
         "value"?: NestedRecord<SubmitField>;
     }
+    interface ApieGraphiteTest {
+    }
     interface ApieGraphiteValidationError {
         "message"?: string;
         "valid"?: boolean;
     }
     interface IntrinsicElements {
         "apie-graphite-form": ApieGraphiteForm;
+        "apie-graphite-test": ApieGraphiteTest;
         "apie-graphite-validation-error": ApieGraphiteValidationError;
     }
 }
@@ -60,6 +72,7 @@ declare module "@stencil/core" {
     export namespace JSX {
         interface IntrinsicElements {
             "apie-graphite-form": LocalJSX.ApieGraphiteForm & JSXBase.HTMLAttributes<HTMLApieGraphiteFormElement>;
+            "apie-graphite-test": LocalJSX.ApieGraphiteTest & JSXBase.HTMLAttributes<HTMLApieGraphiteTestElement>;
             "apie-graphite-validation-error": LocalJSX.ApieGraphiteValidationError & JSXBase.HTMLAttributes<HTMLApieGraphiteValidationErrorElement>;
         }
     }

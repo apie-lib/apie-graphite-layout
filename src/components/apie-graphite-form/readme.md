@@ -21,6 +21,7 @@
 ### Depends on
 
 - apie-form
+- gr-checkbox
 - [apie-graphite-validation-error](../apie-graphite-validation-error)
 - gr-input
 
@@ -28,6 +29,7 @@
 ```mermaid
 graph TD;
   apie-graphite-form --> apie-form
+  apie-graphite-form --> gr-checkbox
   apie-graphite-form --> apie-graphite-validation-error
   apie-graphite-form --> gr-input
   apie-form --> apie-single-input

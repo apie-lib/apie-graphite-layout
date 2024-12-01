@@ -1,11 +1,11 @@
 import { newE2EPage } from '@stencil/core/testing';
 
-describe('apie-graphite-form', () => {
+describe('apie-graphite-test', () => {
   it('renders', async () => {
     const page = await newE2EPage();
-    await page.setContent('<apie-graphite-form></apie-graphite-form>');
+    await page.setContent('<apie-graphite-test></apie-graphite-test>');
 
-    const element = await page.find('apie-graphite-form');
+    const element = await page.find('apie-graphite-test');
     expect(element).toHaveClass('hydrated');
   });
 });
